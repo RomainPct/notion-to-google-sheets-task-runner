@@ -1,0 +1,1 @@
+Structure : https://qvault.io/golang/golang-project-structure/
