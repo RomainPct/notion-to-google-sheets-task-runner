@@ -1,6 +1,10 @@
 package database
 
 type Automation struct {
-	id              uint8
-	notion_database string
+	Id                   uint8
+	Notion_database      string
+	google_sheet         string
+	google_sheet_tab     string
+	notion_token         string
+	google_refresh_token string
 }
