@@ -69,21 +69,18 @@ func runAutomation(automation database.Automation) {
 		panic(err.Error())
 	}
 	properties, fields := dataformatter.GenerateNotionFields(database.Properties)
+	notionHeaders := append([]string{"id", "created_time", "last_edited_time"}, fields...)
 	// Get gsheet headers
 	headers, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:ZZ1").Do()
 	if err != nil {
 		panic(err.Error())
 	}
-	sheetHeaders := []string{}
+	var needRebuild bool
 	if len(headers.Values) > 0 {
-		for _, header := range headers.Values[0] {
-			sheetHeaders = append(sheetHeaders, header.(string))
-		}
+		needRebuild = !dataformatter.Equal(headers.Values[0], notionHeaders)
+	} else {
+		needRebuild = true
 	}
-	//OPTIMIZE: may we do array conversion inside the equal function only ?
-	notionHeaders := append([]string{"id", "created_time", "last_edited_time"}, fields...)
-	needRebuild := !dataformatter.Equal(sheetHeaders, notionHeaders)
-	fmt.Println(sheetHeaders, needRebuild)
 	// Get and format notion data
 	notionRows := getNotionData(notion, notionDatabaseId, properties, needRebuild)
 	fmt.Println(notionHeaders, notionRows)

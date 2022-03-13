@@ -56,7 +56,7 @@ func SplitNotionData(rows [][]string, existingIds [][]interface{}) ([]ExistingRo
 	return existingRows, newRows
 }
 
-func Equal(a, b []string) bool {
+func Equal(a []interface{}, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
