@@ -1,7 +1,6 @@
 package dataformatter
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/jomei/notionapi"
@@ -13,9 +12,11 @@ type ExistingRow struct {
 }
 
 func GenerateNotionFields(notionProperties notionapi.PropertyConfigs) ([]string, []string) {
-	properties := []string{}
+	properties := make([]string, len(notionProperties))
+	i := 0
 	for key := range notionProperties {
-		properties = append(properties, key)
+		properties[i] = key
+		i += 1
 	}
 	sort.Strings(properties)
 	fields := []string{}
@@ -39,7 +40,6 @@ func SplitNotionData(rows [][]string, existingIds [][]interface{}) ([]ExistingRo
 			ids[id[0].(string)] = index
 		}
 	}
-	fmt.Println(ids)
 	existingRows := []ExistingRow{}
 	newRows := [][]string{}
 	for _, row := range rows {
