@@ -83,7 +83,6 @@ func runAutomation(automation database.Automation) {
 	}
 	// Get and format notion data
 	notionRows := getNotionData(notion, notionDatabaseId, properties, needRebuild)
-	fmt.Println(notionHeaders, notionRows)
 	// Read existing ids in sheet
 	existingIds, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:A").Do()
 	if err != nil {
@@ -91,7 +90,6 @@ func runAutomation(automation database.Automation) {
 	}
 	// Organize between new data and data to update
 	existingRows, newRows := dataformatter.SplitNotionData(notionRows, existingIds.Values)
-	fmt.Println(existingRows, newRows)
 	// Update headers
 	if needRebuild {
 		_, err = sheetsService.Spreadsheets.Values.Update(
@@ -124,7 +122,7 @@ func runAutomation(automation database.Automation) {
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Println("||| Done |||")
+	fmt.Println("-> Done")
 }
 
 func getNotionData(notion *notionapi.Client, id notionapi.DatabaseID, properties []string, rebuild bool) [][]string {
@@ -152,8 +150,8 @@ func getNotionData(notion *notionapi.Client, id notionapi.DatabaseID, properties
 			break
 		}
 	}
-	rows := [][]string{}
-	for _, row := range data {
+	rows := make([][]string, len(data))
+	for index, row := range data {
 		columns := []string{
 			row.ID.String(),
 			row.CreatedTime.String(),
@@ -167,7 +165,7 @@ func getNotionData(notion *notionapi.Client, id notionapi.DatabaseID, properties
 				columns = append(columns, "")
 			}
 		}
-		rows = append(rows, columns)
+		rows[index] = columns
 	}
 	return rows
 }
