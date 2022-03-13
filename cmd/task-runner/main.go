@@ -40,6 +40,7 @@ func cronTask() {
 
 func runAutomation(automation database.Automation) {
 	// Set automation last run date
+	database.SetAutomationLastRun(automation)
 	// Set notion and gsheets api
 	notion := notionapi.NewClient(notionapi.Token(automation.Notion_token))
 	notionDatabaseId := notionapi.DatabaseID(automation.Notion_database)

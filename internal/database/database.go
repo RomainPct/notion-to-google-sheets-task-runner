@@ -7,7 +7,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func query(request string) *sql.Rows {
+func query(request string, args ...interface{}) *sql.Rows {
 	db, err := sql.Open("mysql", os.Getenv("DATABASE_IDENTIFIER")+":"+os.Getenv("DATABASE_PASSWORD")+"@tcp("+os.Getenv("DATABASE_HOST")+":"+os.Getenv("DATABASE_PORT")+")/"+os.Getenv("DATABASE_NAME"))
 
 	if err != nil {
@@ -16,13 +16,22 @@ func query(request string) *sql.Rows {
 
 	defer db.Close()
 
-	fetch, err := db.Query(request)
+	fetch, err := db.Query(request, args...)
 
 	if err != nil {
 		panic(err.Error())
 	}
 
 	return fetch
+}
+
+func SetAutomationLastRun(automation Automation) {
+	fetch := query(`
+				UPDATE ntg_automations
+				SET last_run = NOW()
+				WHERE id = ?
+				`, automation.Id)
+	defer fetch.Close()
 }
 
 func QueryWaitingAutomations() []Automation {
