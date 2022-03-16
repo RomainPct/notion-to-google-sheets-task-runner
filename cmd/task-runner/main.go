@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -137,8 +138,10 @@ func runAutomation(automation database.Automation) bool {
 
 func saveResult(automation database.Automation, automationErr error) bool {
 	result := automationErr == nil
-	executionId, err := database.SetAutomationExecution(automation, result)
-	fmt.Println(executionId, err)
+	executionId, _ := database.SetAutomationExecution(automation, result)
+	if automationErr != nil {
+		os.WriteFile("./logs/error-"+strconv.Itoa(int(executionId))+".txt", []byte(automationErr.Error()), 0444)
+	}
 	return result
 }
 
