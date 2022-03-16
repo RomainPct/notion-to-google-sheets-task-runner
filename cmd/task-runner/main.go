@@ -32,23 +32,30 @@ func main() {
 
 func cronTask() {
 	log.Println("-------- Task time --------")
-	for _, automation := range database.QueryWaitingAutomations() {
-		fmt.Println(automation.Id)
+	automations, err := database.QueryWaitingAutomations()
+	if err != nil {
+		fmt.Println("Fail querying waiting automations : ", err.Error())
+	}
+	for _, automation := range automations {
+		fmt.Println("-> Run automation ", automation.Id)
 		go runAutomation(automation)
 	}
 }
 
-func runAutomation(automation database.Automation) {
+func runAutomation(automation database.Automation) bool {
 	// Set automation last run date
 	database.SetAutomationLastRun(automation)
 	// Set notion and gsheets api
 	notion := notionapi.NewClient(notionapi.Token(automation.Notion_token))
 	notionDatabaseId := notionapi.DatabaseID(automation.Notion_database)
-	sheetsService := getSheetService(automation.Google_refresh_token)
+	sheetsService, err := getSheetService(automation.Google_refresh_token)
+	if err != nil {
+		return saveResult(automation, err)
+	}
 	// Create gsheet tab if needed
 	spreadhsheet, err := sheetsService.Spreadsheets.Get(automation.Google_sheet).Do()
 	if err != nil {
-		panic(err.Error())
+		return saveResult(automation, err)
 	}
 	tabExists := dataformatter.TabExists(automation.Google_sheet_tab, spreadhsheet.Sheets)
 	if !tabExists {
@@ -60,20 +67,20 @@ func runAutomation(automation database.Automation) {
 			}},
 		}).Do()
 		if err != nil {
-			panic(err.Error())
+			return saveResult(automation, err)
 		}
 	}
 	// Get notion fields
 	database, err := notion.Database.Get(context.Background(), notionDatabaseId)
 	if err != nil {
-		panic(err.Error())
+		return saveResult(automation, err)
 	}
 	properties, fields := dataformatter.GenerateNotionFields(database.Properties)
 	notionHeaders := append([]string{"id", "created_time", "last_edited_time"}, fields...)
 	// Get gsheet headers
 	headers, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:ZZ1").Do()
 	if err != nil {
-		panic(err.Error())
+		return saveResult(automation, err)
 	}
 	var needRebuild bool
 	if len(headers.Values) > 0 {
@@ -82,11 +89,14 @@ func runAutomation(automation database.Automation) {
 		needRebuild = true
 	}
 	// Get and format notion data
-	notionRows := getNotionData(notion, notionDatabaseId, properties, needRebuild)
+	notionRows, err := getNotionData(notion, notionDatabaseId, properties, needRebuild)
+	if err != nil {
+		return saveResult(automation, err)
+	}
 	// Read existing ids in sheet
 	existingIds, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:A").Do()
 	if err != nil {
-		panic(err.Error())
+		return saveResult(automation, err)
 	}
 	// Organize between new data and data to update
 	existingRows, newRows := dataformatter.SplitNotionData(notionRows, existingIds.Values)
@@ -98,7 +108,7 @@ func runAutomation(automation database.Automation) {
 			&sheets.ValueRange{Values: [][]interface{}{dataformatter.FormatToRowValueRange(notionHeaders)}},
 		).ValueInputOption("RAW").Do()
 		if err != nil {
-			panic(err.Error())
+			return saveResult(automation, err)
 		}
 	}
 	// Add new data
@@ -112,7 +122,7 @@ func runAutomation(automation database.Automation) {
 		&sheets.ValueRange{Values: dataformatter.FormatToValueRange(newRows)},
 	).ValueInputOption("RAW").Do()
 	if err != nil {
-		panic(err.Error())
+		return saveResult(automation, err)
 	}
 	// Update existing data
 	_, err = sheetsService.Spreadsheets.Values.BatchUpdate(automation.Google_sheet, &sheets.BatchUpdateValuesRequest{
@@ -120,12 +130,19 @@ func runAutomation(automation database.Automation) {
 		ValueInputOption: "RAW",
 	}).Do()
 	if err != nil {
-		panic(err.Error())
+		return saveResult(automation, err)
 	}
-	fmt.Println("-> Done")
+	return saveResult(automation, nil)
 }
 
-func getNotionData(notion *notionapi.Client, id notionapi.DatabaseID, properties []string, rebuild bool) [][]string {
+func saveResult(automation database.Automation, automationErr error) bool {
+	result := automationErr == nil
+	executionId, err := database.SetAutomationExecution(automation, result)
+	fmt.Println(executionId, err)
+	return result
+}
+
+func getNotionData(notion *notionapi.Client, id notionapi.DatabaseID, properties []string, rebuild bool) ([][]string, error) {
 	data := []notionapi.Page{}
 	var startCursor *notionapi.Cursor = nil
 	for {
@@ -138,7 +155,7 @@ func getNotionData(notion *notionapi.Client, id notionapi.DatabaseID, properties
 		}
 		req, err := notion.Database.Query(context.Background(), id, &request)
 		if err != nil {
-			panic(err.Error())
+			return nil, err
 		}
 		data = append(data, req.Results...)
 		if req.HasMore {
@@ -167,23 +184,23 @@ func getNotionData(notion *notionapi.Client, id notionapi.DatabaseID, properties
 		}
 		rows[index] = columns
 	}
-	return rows
+	return rows, nil
 }
 
-func getSheetService(refreshToken string) *sheets.Service {
+func getSheetService(refreshToken string) (*sheets.Service, error) {
 	googleCtx := context.Background()
 	b, err := ioutil.ReadFile("secret/credentials.json")
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	googleConfig, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive.metadata.readonly")
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	googleToken := oauth2.Token{RefreshToken: refreshToken}
 	sheetsService, err := sheets.NewService(googleCtx, option.WithTokenSource(googleConfig.TokenSource(googleCtx, &googleToken)))
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
-	return sheetsService
+	return sheetsService, nil
 }
