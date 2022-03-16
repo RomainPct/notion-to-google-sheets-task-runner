@@ -51,12 +51,12 @@ func runAutomation(automation database.Automation) bool {
 	notionDatabaseId := notionapi.DatabaseID(automation.Notion_database)
 	sheetsService, err := getSheetService(automation.Google_refresh_token)
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "google_configuration")
 	}
 	// Create gsheet tab if needed
 	spreadhsheet, err := sheetsService.Spreadsheets.Get(automation.Google_sheet).Do()
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "google_read_sheet")
 	}
 	tabExists := dataformatter.TabExists(automation.Google_sheet_tab, spreadhsheet.Sheets)
 	if !tabExists {
@@ -68,20 +68,20 @@ func runAutomation(automation database.Automation) bool {
 			}},
 		}).Do()
 		if err != nil {
-			return saveResult(automation, err)
+			return saveResult(automation, err, "google_add_tab")
 		}
 	}
 	// Get notion fields
 	database, err := notion.Database.Get(context.Background(), notionDatabaseId)
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "notion_read_fields")
 	}
 	properties, fields := dataformatter.GenerateNotionFields(database.Properties)
 	notionHeaders := append([]string{"id", "created_time", "last_edited_time"}, fields...)
 	// Get gsheet headers
 	headers, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:ZZ1").Do()
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "google_read_headers")
 	}
 	var needRebuild bool
 	if len(headers.Values) > 0 {
@@ -92,12 +92,12 @@ func runAutomation(automation database.Automation) bool {
 	// Get and format notion data
 	notionRows, err := getNotionData(notion, notionDatabaseId, properties, needRebuild)
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "notion_get_data")
 	}
 	// Read existing ids in sheet
 	existingIds, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:A").Do()
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "google_read_ids")
 	}
 	// Organize between new data and data to update
 	existingRows, newRows := dataformatter.SplitNotionData(notionRows, existingIds.Values)
@@ -109,7 +109,7 @@ func runAutomation(automation database.Automation) bool {
 			&sheets.ValueRange{Values: [][]interface{}{dataformatter.FormatToRowValueRange(notionHeaders)}},
 		).ValueInputOption("RAW").Do()
 		if err != nil {
-			return saveResult(automation, err)
+			return saveResult(automation, err, "google_update_headers")
 		}
 	}
 	// Add new data
@@ -123,7 +123,7 @@ func runAutomation(automation database.Automation) bool {
 		&sheets.ValueRange{Values: dataformatter.FormatToValueRange(newRows)},
 	).ValueInputOption("RAW").Do()
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "google_insert_data")
 	}
 	// Update existing data
 	_, err = sheetsService.Spreadsheets.Values.BatchUpdate(automation.Google_sheet, &sheets.BatchUpdateValuesRequest{
@@ -131,16 +131,23 @@ func runAutomation(automation database.Automation) bool {
 		ValueInputOption: "RAW",
 	}).Do()
 	if err != nil {
-		return saveResult(automation, err)
+		return saveResult(automation, err, "google_update_data")
 	}
 	return saveResult(automation, nil)
 }
 
-func saveResult(automation database.Automation, automationErr error) bool {
+func saveResult(automation database.Automation, automationErr error, label ...string) bool {
 	result := automationErr == nil
-	executionId, _ := database.SetAutomationExecution(automation, result)
+	executionId, err := database.SetAutomationExecution(automation, result, label...)
+	if err != nil {
+		panic(err.Error())
+	}
+	stringExecutionId := strconv.Itoa(int(executionId))
 	if automationErr != nil {
-		os.WriteFile("./logs/error-"+strconv.Itoa(int(executionId))+".txt", []byte(automationErr.Error()), 0444)
+		os.WriteFile("./logs/error-"+stringExecutionId+".txt", []byte(automationErr.Error()), 0444)
+		fmt.Println("Automation ", automation.Id, " did fail (Check error-"+stringExecutionId+".txt for more details)")
+	} else {
+		fmt.Println("Automation ", automation.Id, " did run successfully")
 	}
 	return result
 }
