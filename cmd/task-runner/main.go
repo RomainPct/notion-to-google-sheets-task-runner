@@ -27,12 +27,12 @@ func main() {
 	}
 	log.Println("Notion to google sheets task runner is running")
 	scheduler := gocron.NewScheduler(time.UTC)
-	scheduler.Every(1000).Seconds().Do(cronTask)
+	scheduler.Every(10).Seconds().Do(cronTask)
 	scheduler.StartBlocking()
 }
 
 func cronTask() {
-	log.Println("-------- Task time --------")
+	log.Println("-> Task time")
 	automations, err := database.QueryWaitingAutomations()
 	if err != nil {
 		fmt.Println("Fail querying waiting automations : ", err.Error())

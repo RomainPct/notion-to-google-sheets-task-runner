@@ -1,4 +1,6 @@
-.env
 bin/
 vendor/
 credentials.json
+*.env
+.DS_Store
+logs/*.txt
