@@ -15,6 +15,10 @@ lint:
 
 build:
 	GOOS=linux GOARCH=amd64 go build -o bin/task-runner ./cmd/task-runner
+	GOOS=linux GOARCH=amd64 go build -o bin/web-server ./cmd/web-server
 
-run:
+run-task-runner:
 	go run cmd/task-runner/main.go
+
+run-web-server:
+	go run cmd/web-server/main.go
