@@ -46,9 +46,9 @@ func ReadNotionPropertyValue(property notionapi.Property) []string {
 	case *notionapi.TextProperty:
 		return []string{p.Text[0].PlainText}
 	case *notionapi.CreatedTimeProperty:
-		return []string{p.CreatedTime.GoString()}
+		return []string{p.CreatedTime.String()}
 	case *notionapi.LastEditedTimeProperty:
-		return []string{p.LastEditedTime.GoString()}
+		return []string{p.LastEditedTime.String()}
 	case *notionapi.DateProperty:
 		return readDate(p.Date)
 	case *notionapi.SelectProperty:
