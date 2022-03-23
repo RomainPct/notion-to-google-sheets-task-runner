@@ -39,11 +39,7 @@ func query(request string, args ...interface{}) (*sql.Rows, error) {
 	return fetch, nil
 }
 
-func SetAutomationExecution(automation Automation, success bool, label ...string) (int64, error) {
-	var errorLabel string
-	if len(label) > 0 {
-		errorLabel = label[0]
-	}
+func SetAutomationExecution(automation Automation, success bool, errorLabel string) (int64, error) {
 	exec, err := exec(`
 				INSERT INTO ntg_automation_executions (automation_id, success, error_label)
 				VALUES (?, ?, ?)

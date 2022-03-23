@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/RomainPct/notion-to-google-sheets-task-runner/internal/database"
 	"github.com/RomainPct/notion-to-google-sheets-task-runner/internal/dataformatter"
+	"github.com/RomainPct/notion-to-google-sheets-task-runner/internal/jsonanswer"
 	"github.com/jomei/notionapi"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -16,7 +18,7 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-func RunAutomation(automation database.Automation) bool {
+func RunAutomation(automation database.Automation, w http.ResponseWriter) bool {
 	// Set automation last run date
 	database.SetAutomationLastRun(automation)
 	// Set notion and gsheets api
@@ -24,12 +26,12 @@ func RunAutomation(automation database.Automation) bool {
 	notionDatabaseId := notionapi.DatabaseID(automation.Notion_database)
 	sheetsService, err := getSheetService(automation.Google_refresh_token)
 	if err != nil {
-		return SaveResult(automation, err, "google_configuration")
+		return SaveResult(automation, w, err, "google_configuration")
 	}
 	// Create gsheet tab if needed
 	spreadhsheet, err := sheetsService.Spreadsheets.Get(automation.Google_sheet).Do()
 	if err != nil {
-		return SaveResult(automation, err, "google_read_sheet")
+		return SaveResult(automation, w, err, "google_read_sheet")
 	}
 	tabExists := dataformatter.TabExists(automation.Google_sheet_tab, spreadhsheet.Sheets)
 	if !tabExists {
@@ -41,20 +43,20 @@ func RunAutomation(automation database.Automation) bool {
 			}},
 		}).Do()
 		if err != nil {
-			return SaveResult(automation, err, "google_add_tab")
+			return SaveResult(automation, w, err, "google_add_tab")
 		}
 	}
 	// Get notion fields
 	database, err := notion.Database.Get(context.Background(), notionDatabaseId)
 	if err != nil {
-		return SaveResult(automation, err, "notion_read_fields")
+		return SaveResult(automation, w, err, "notion_read_fields")
 	}
 	properties, fields := dataformatter.GenerateNotionFields(database.Properties)
 	notionHeaders := append([]string{"id", "created_time", "last_edited_time"}, fields...)
 	// Get gsheet headers
 	headers, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:ZZ1").Do()
 	if err != nil {
-		return SaveResult(automation, err, "google_read_headers")
+		return SaveResult(automation, w, err, "google_read_headers")
 	}
 	var needRebuild bool
 	if len(headers.Values) > 0 {
@@ -65,12 +67,12 @@ func RunAutomation(automation database.Automation) bool {
 	// Get and format notion data
 	notionRows, err := getNotionData(notion, notionDatabaseId, properties, needRebuild)
 	if err != nil {
-		return SaveResult(automation, err, "notion_get_data")
+		return SaveResult(automation, w, err, "notion_get_data")
 	}
 	// Read existing ids in sheet
 	existingIds, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:A").Do()
 	if err != nil {
-		return SaveResult(automation, err, "google_read_ids")
+		return SaveResult(automation, w, err, "google_read_ids")
 	}
 	// Organize between new data and data to update
 	existingRows, newRows := dataformatter.SplitNotionData(notionRows, existingIds.Values)
@@ -82,7 +84,7 @@ func RunAutomation(automation database.Automation) bool {
 			&sheets.ValueRange{Values: [][]interface{}{dataformatter.FormatToRowValueRange(notionHeaders)}},
 		).ValueInputOption("RAW").Do()
 		if err != nil {
-			return SaveResult(automation, err, "google_update_headers")
+			return SaveResult(automation, w, err, "google_update_headers")
 		}
 	}
 	// Add new data
@@ -96,7 +98,7 @@ func RunAutomation(automation database.Automation) bool {
 		&sheets.ValueRange{Values: dataformatter.FormatToValueRange(newRows)},
 	).ValueInputOption("RAW").Do()
 	if err != nil {
-		return SaveResult(automation, err, "google_insert_data")
+		return SaveResult(automation, w, err, "google_insert_data")
 	}
 	// Update existing data
 	_, err = sheetsService.Spreadsheets.Values.BatchUpdate(automation.Google_sheet, &sheets.BatchUpdateValuesRequest{
@@ -104,14 +106,14 @@ func RunAutomation(automation database.Automation) bool {
 		ValueInputOption: "RAW",
 	}).Do()
 	if err != nil {
-		return SaveResult(automation, err, "google_update_data")
+		return SaveResult(automation, w, err, "google_update_data")
 	}
-	return SaveResult(automation, nil)
+	return SaveResult(automation, w, nil, "")
 }
 
-func SaveResult(automation database.Automation, automationErr error, label ...string) bool {
+func SaveResult(automation database.Automation, w http.ResponseWriter, automationErr error, errorLabel string) bool {
 	result := automationErr == nil
-	executionId, err := database.SetAutomationExecution(automation, result, label...)
+	executionId, err := database.SetAutomationExecution(automation, result, errorLabel)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -119,8 +121,14 @@ func SaveResult(automation database.Automation, automationErr error, label ...st
 	if automationErr != nil {
 		os.WriteFile("./logs/error-"+stringExecutionId+".txt", []byte(automationErr.Error()), 0444)
 		fmt.Println("Automation ", automation.Id, " did fail (Check error-"+stringExecutionId+".txt for more details)")
+		if w != nil {
+			jsonanswer.Error(w, errorLabel, "")
+		}
 	} else {
 		fmt.Println("Automation ", automation.Id, " did run successfully")
+		if w != nil {
+			jsonanswer.Response(w, "Automation "+strconv.Itoa(int(automation.Id))+" did run")
+		}
 	}
 	return result
 }

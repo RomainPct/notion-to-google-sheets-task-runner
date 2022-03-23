@@ -31,6 +31,6 @@ func cronTask() {
 	}
 	for _, automation := range automations {
 		fmt.Println("-> Run automation ", automation.Id)
-		go automationrunner.RunAutomation(automation)
+		go automationrunner.RunAutomation(automation, nil)
 	}
 }
