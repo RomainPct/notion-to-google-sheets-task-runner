@@ -7,6 +7,7 @@ import (
 )
 
 func Error(w http.ResponseWriter, code string, message string) {
+	w.WriteHeader(http.StatusOK)
 	resp := make(map[string]interface{})
 	resp["error"] = true
 	resp["code"] = code
@@ -15,6 +16,7 @@ func Error(w http.ResponseWriter, code string, message string) {
 }
 
 func Response(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusCreated)
 	resp := make(map[string]interface{})
 	resp["error"] = false
 	resp["message"] = message
@@ -22,7 +24,7 @@ func Response(w http.ResponseWriter, message string) {
 }
 
 func returnJson(w http.ResponseWriter, data map[string]interface{}) {
-	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	jsonResp, err := json.Marshal(data)
 	if err != nil {

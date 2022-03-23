@@ -159,5 +159,9 @@ func readUsers(users []notionapi.User) []string {
 }
 
 func readUser(user notionapi.User) []string {
-	return []string{user.Name, user.ID.String(), user.Person.Email}
+	var email string
+	if user.Person != nil {
+		email = user.Person.Email
+	}
+	return []string{user.Name, user.ID.String(), email}
 }
