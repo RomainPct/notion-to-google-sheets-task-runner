@@ -17,6 +17,9 @@ jobs:
       with:
         go-version: '1.17.6'
 
+    - name: 👁‍🗨 Verify dependencies
+      run: go mod verify
+
     - name: 🏗 Build
       run: |
           GOOS=linux GOARCH=amd64 go build -o /github/workspace/.release/task-runner ./cmd/task-runner
