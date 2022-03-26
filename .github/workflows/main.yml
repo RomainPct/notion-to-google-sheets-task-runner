@@ -30,7 +30,7 @@ jobs:
     - name: ⬆️ Upload
       uses: garygrossgarten/github-action-scp@release
       with:
-        local: "/.github/bin/task-runner"
+        local: "./.github/bin/task-runner"
         remote: ${{ secrets.TARGET }}
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
