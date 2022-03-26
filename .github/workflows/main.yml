@@ -19,7 +19,6 @@ jobs:
 
     - name: 👁‍🗨 Verify dependencies
       run: |
-        go mod init
         go mod tidy
         go mod verify
 
