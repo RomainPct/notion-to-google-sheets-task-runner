@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 	// Cron
-	log.Println("--- NTGS task runner is running ---")
+	log.Println("--- NTGS task runner is running 1 ---")
 	scheduler := gocron.NewScheduler(time.UTC)
 	scheduler.Every(10).Seconds().Do(cronTask)
 	scheduler.StartBlocking()

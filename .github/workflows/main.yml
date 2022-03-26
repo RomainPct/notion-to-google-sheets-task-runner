@@ -25,7 +25,7 @@ jobs:
 
     - name: 🏗 Build
       run: |
-          GOOS=linux GOARCH=amd64 go build -o ./.github/bin/task-runner ./cmd/task-runner
+          GOOS=linux GOARCH=amd64 go build -o ./task-runner ./cmd/task-runner
 
     - name: ⬆️ Upload
       uses: appleboy/scp-action@master
@@ -35,15 +35,18 @@ jobs:
         password: ${{ secrets.PASSWORD }}
         port: ${{ secrets.PORT }}
         overwrite: true
-        source: "./.github/bin/task-runner"
+        source: "./task-runner"
         target: ${{ secrets.TARGET }}
-
-    # - name: ⬆️ Upload
-    #   uses: garygrossgarten/github-action-scp@release
-    #   with:
-    #     local: "./.github/bin/task-runner"
-    #     remote: ${{ secrets.TARGET }}
-    #     host: ${{ secrets.HOST }}
-    #     username: ${{ secrets.USERNAME }}
-    #     password: ${{ secrets.PASSWORD }}
-    #     port: ${{ secrets.PORT }}
+    
+    - name: 🛰 Mise en orbite
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
+        port: ${{ secrets.PORT }}
+        script: |
+          service ${{ secrets.SERVICE_NAME }} stop
+          mv /home/techlead/tmp/task-runner /home/techlead/
+          service ${{ secrets.SERVICE_NAME }} start
+          service ${{ secrets.SERVICE_NAME }} status
