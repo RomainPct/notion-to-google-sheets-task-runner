@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"os"
 	"strconv"
-
-	_ "github.com/go-sql-driver/mysql"
 )
 
 func getDB() (*sql.DB, error) {

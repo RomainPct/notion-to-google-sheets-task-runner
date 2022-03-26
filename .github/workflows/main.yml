@@ -6,7 +6,7 @@ on:
 jobs:
   task-runner-deploy:
     name: 🎉 Deploy task-runner
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
 
     - name: 🚚 Get latest code
