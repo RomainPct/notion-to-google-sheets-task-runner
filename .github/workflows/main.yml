@@ -34,7 +34,8 @@ jobs:
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
         port: ${{ secrets.PORT }}
-        source: "/.github/bin/task-runner"
+        overwrite: true
+        source: "./.github/bin/task-runner"
         target: ${{ secrets.TARGET }}
 
     # - name: ⬆️ Upload
