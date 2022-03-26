@@ -6,7 +6,7 @@ on:
 jobs:
   task-runner-deploy:
     name: 🎉 Deploy task-runner
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
 
     - name: 🚚 Get latest code
@@ -28,11 +28,21 @@ jobs:
           GOOS=linux GOARCH=amd64 go build -o ./.github/bin/task-runner ./cmd/task-runner
 
     - name: ⬆️ Upload
-      uses: garygrossgarten/github-action-scp@release
+      uses: appleboy/scp-action@master
       with:
-        local: "./.github/bin/task-runner"
-        remote: ${{ secrets.TARGET }}
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
         port: ${{ secrets.PORT }}
+        source: "/.github/bin/task-runner"
+        target: ${{ secrets.TARGET }}
+
+    # - name: ⬆️ Upload
+    #   uses: garygrossgarten/github-action-scp@release
+    #   with:
+    #     local: "./.github/bin/task-runner"
+    #     remote: ${{ secrets.TARGET }}
+    #     host: ${{ secrets.HOST }}
+    #     username: ${{ secrets.USERNAME }}
+    #     password: ${{ secrets.PASSWORD }}
+    #     port: ${{ secrets.PORT }}
