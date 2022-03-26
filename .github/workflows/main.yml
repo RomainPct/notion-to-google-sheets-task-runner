@@ -25,7 +25,7 @@ jobs:
 
     - name: 🏗 Build
       run: |
-          GOOS=linux GOARCH=amd64 go build -o /github/workspace/.release/task-runner ./cmd/task-runner
+          GOOS=linux GOARCH=amd64 go build -o /.github/bin/task-runner ./cmd/task-runner
     - name: ⬆️ Upload
       uses: appleboy/scp-action@master
       with:
@@ -33,5 +33,5 @@ jobs:
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
         port: ${{ secrets.PORT }}
-        source: "/github/workspace/.release/task-runner"
+        source: "/.github/bin/task-runner"
         target: ${{ secrets.TARGET }}
