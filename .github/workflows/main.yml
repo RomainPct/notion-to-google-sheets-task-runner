@@ -20,6 +20,7 @@ jobs:
     - name: 👁‍🗨 Verify dependencies
       run: |
         go mod tidy
+        go mod vendor
         go mod verify
 
     - name: 🏗 Build
