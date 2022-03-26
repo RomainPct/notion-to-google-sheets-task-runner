@@ -5,15 +5,17 @@ on:
       - "master"
 jobs:
   task-runner-deploy:
-    name: 🎉 Deploy
+    name: 🎉 Deploy task-runner
     runs-on: ubuntu-latest
     steps:
     - name: 🚚 Get latest code
       uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+        with:
+          go-version: '1.17.6'
     - name: 🏗 Build
-      uses: sosedoff/actions/golang-build@master
-      with:
-        args: linux/amd64
+      run: |
+          GOOS=linux GOARCH=amd64 go build -o /github/workspace/.release/task-runner ./cmd/task-runner
     - name: ⬆️ Upload
       uses: appleboy/scp-action@master
       with:
@@ -21,5 +23,5 @@ jobs:
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
         port: ${{ secrets.PORT }}
-        source: "/github/workspace/.release"
+        source: "/github/workspace/.release/task-runner"
         target: ${{ secrets.TARGET }}
