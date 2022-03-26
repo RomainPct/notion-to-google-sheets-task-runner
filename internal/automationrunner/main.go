@@ -19,6 +19,13 @@ import (
 )
 
 func RunAutomation(automation database.Automation, w http.ResponseWriter) bool {
+	defer func() {
+		v := recover()
+		if v != nil {
+			err := fmt.Errorf("%v", v)
+			SaveResult(automation, w, err, "routine_crash")
+		}
+	}()
 	// Set automation last run date
 	database.SetAutomationLastRun(automation)
 	// Set notion and gsheets api
