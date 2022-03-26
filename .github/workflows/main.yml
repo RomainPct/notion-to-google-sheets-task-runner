@@ -8,12 +8,15 @@ jobs:
     name: 🎉 Deploy task-runner
     runs-on: ubuntu-latest
     steps:
+
     - name: 🚚 Get latest code
       uses: actions/checkout@v2
+
     - name: 🔋 Set up Go
       uses: actions/setup-go@v2
-          with:
-            go-version: '1.17.6'
+        with:
+          go-version: '1.17.6'
+
     - name: 🏗 Build
       run: |
           GOOS=linux GOARCH=amd64 go build -o /github/workspace/.release/task-runner ./cmd/task-runner
