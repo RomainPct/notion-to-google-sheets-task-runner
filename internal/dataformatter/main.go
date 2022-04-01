@@ -43,14 +43,16 @@ func SplitNotionData(rows [][]string, existingIds [][]interface{}) ([]ExistingRo
 	existingRows := []ExistingRow{}
 	newRows := [][]string{}
 	for _, row := range rows {
-		index, exists := ids[row[0]]
-		if exists {
-			existingRows = append(existingRows, ExistingRow{
-				index: index,
-				data:  row,
-			})
-		} else {
-			newRows = append(newRows, row)
+		if len(row) > 0 {
+			index, exists := ids[row[0]]
+			if exists {
+				existingRows = append(existingRows, ExistingRow{
+					index: index,
+					data:  row,
+				})
+			} else {
+				newRows = append(newRows, row)
+			}
 		}
 	}
 	return existingRows, newRows

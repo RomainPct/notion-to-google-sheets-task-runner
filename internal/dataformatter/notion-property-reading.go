@@ -32,9 +32,13 @@ func ReadNotionPropertyValue(property notionapi.Property) []string {
 		fmt.Printf("unexpected type %T\n", p) // %T prints whatever type t has
 		return []string{""}
 	case *notionapi.TitleProperty:
-		return []string{p.Title[0].PlainText}
+		if len(p.Title) > 0 {
+			return []string{p.Title[0].PlainText}
+		}
 	case *notionapi.RichTextProperty:
-		return []string{p.RichText[0].PlainText}
+		if len(p.RichText) > 0 {
+			return []string{p.RichText[0].PlainText}
+		}
 	case *notionapi.CheckboxProperty:
 		return []string{strconv.FormatBool(p.Checkbox)}
 	case *notionapi.NumberProperty:
@@ -44,7 +48,9 @@ func ReadNotionPropertyValue(property notionapi.Property) []string {
 	case *notionapi.EmailProperty:
 		return []string{p.Email}
 	case *notionapi.TextProperty:
-		return []string{p.Text[0].PlainText}
+		if len(p.Text) > 0 {
+			return []string{p.Text[0].PlainText}
+		}
 	case *notionapi.CreatedTimeProperty:
 		return []string{p.CreatedTime.String()}
 	case *notionapi.LastEditedTimeProperty:
