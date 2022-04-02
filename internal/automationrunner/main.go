@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 
 	"github.com/RomainPct/notion-to-google-sheets-task-runner/internal/database"
@@ -61,7 +62,7 @@ func RunAutomation(automation database.Automation, w http.ResponseWriter) bool {
 	properties, fields := dataformatter.GenerateNotionFields(database.Properties)
 	notionHeaders := append([]string{"id", "created_time", "last_edited_time"}, fields...)
 	// Get gsheet headers
-	headers, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:ZZ1").Do()
+	headers, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, "'"+automation.Google_sheet_tab+"'!A1:ZZ1").Do()
 	if err != nil {
 		return SaveResult(automation, w, err, "google_read_headers")
 	}
@@ -77,7 +78,7 @@ func RunAutomation(automation database.Automation, w http.ResponseWriter) bool {
 		return SaveResult(automation, w, err, "notion_get_data")
 	}
 	// Read existing ids in sheet
-	existingIds, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, automation.Google_sheet_tab+"!A1:A").Do()
+	existingIds, err := sheetsService.Spreadsheets.Values.Get(automation.Google_sheet, "'"+automation.Google_sheet_tab+"'!A1:A").Do()
 	if err != nil {
 		return SaveResult(automation, w, err, "google_read_ids")
 	}
@@ -87,7 +88,7 @@ func RunAutomation(automation database.Automation, w http.ResponseWriter) bool {
 	if needRebuild {
 		_, err = sheetsService.Spreadsheets.Values.Update(
 			automation.Google_sheet,
-			automation.Google_sheet_tab+"!A1:ZZ1",
+			"'"+automation.Google_sheet_tab+"'!A1:ZZ1",
 			&sheets.ValueRange{Values: [][]interface{}{dataformatter.FormatToRowValueRange(notionHeaders)}},
 		).ValueInputOption("RAW").Do()
 		if err != nil {
@@ -95,17 +96,19 @@ func RunAutomation(automation database.Automation, w http.ResponseWriter) bool {
 		}
 	}
 	// Add new data
-	newRowsCount := len(existingIds.Values)
-	if newRowsCount == 0 {
-		newRowsCount = 1
-	}
-	_, err = sheetsService.Spreadsheets.Values.Update(
-		automation.Google_sheet,
-		automation.Google_sheet_tab+"!A"+strconv.Itoa(1+newRowsCount)+":ZZ"+strconv.Itoa(1+newRowsCount+len(newRows)),
-		&sheets.ValueRange{Values: dataformatter.FormatToValueRange(newRows)},
-	).ValueInputOption("RAW").Do()
-	if err != nil {
-		return SaveResult(automation, w, err, "google_insert_data")
+	if len(newRows) > 0 {
+		rowsStart := len(existingIds.Values)
+		if rowsStart == 0 {
+			rowsStart = 1
+		}
+		_, err = sheetsService.Spreadsheets.Values.Append(
+			automation.Google_sheet,
+			"'"+automation.Google_sheet_tab+"'!A"+strconv.Itoa(1+rowsStart)+":ZZ"+strconv.Itoa(1+rowsStart+len(newRows)),
+			&sheets.ValueRange{Values: dataformatter.FormatToValueRange(newRows)},
+		).ValueInputOption("RAW").Do()
+		if err != nil {
+			return SaveResult(automation, w, err, "google_insert_data")
+		}
 	}
 	// Update existing data
 	_, err = sheetsService.Spreadsheets.Values.BatchUpdate(automation.Google_sheet, &sheets.BatchUpdateValuesRequest{
@@ -126,7 +129,8 @@ func SaveResult(automation database.Automation, w http.ResponseWriter, automatio
 	}
 	stringExecutionId := strconv.Itoa(int(executionId))
 	if automationErr != nil {
-		os.WriteFile("./logs/error-"+stringExecutionId+".txt", []byte(automationErr.Error()), 0444)
+		errorContent := append([]byte(automationErr.Error()), debug.Stack()...)
+		os.WriteFile("./logs/error-"+stringExecutionId+".txt", errorContent, 0444)
 		fmt.Println("Automation ", automation.Id, " did fail (Check error-"+stringExecutionId+".txt for more details)")
 		if w != nil {
 			jsonanswer.Error(w, errorLabel, "")

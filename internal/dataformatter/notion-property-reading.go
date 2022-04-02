@@ -78,7 +78,9 @@ func ReadNotionPropertyValue(property notionapi.Property) []string {
 		case notionapi.FormulaTypeString:
 			return []string{p.Formula.String}
 		case notionapi.FormulaTypeDate:
-			return []string{strings.Join(readDate(*p.Formula.Date), "-")}
+			if p.Formula.Date != nil {
+				return []string{strings.Join(readDate(*p.Formula.Date), "-")}
+			}
 		}
 	case *notionapi.RelationProperty:
 		return []string{readRelations(p.Relation)}
@@ -87,7 +89,9 @@ func ReadNotionPropertyValue(property notionapi.Property) []string {
 		case notionapi.RollupTypeNumber:
 			return []string{strconv.FormatFloat(p.Rollup.Number, 'f', -1, 64)}
 		case notionapi.RollupTypeDate:
-			return []string{strings.Join(readDate(*p.Rollup.Date), "-")}
+			if p.Rollup.Date != nil {
+				return []string{strings.Join(readDate(*p.Rollup.Date), "-")}
+			}
 		case notionapi.RollupTypeArray:
 			return []string{readRollupArray(p.Rollup.Array)}
 		}
@@ -114,7 +118,6 @@ func readFiles(files []notionapi.File) string {
 }
 
 func readDate(date notionapi.DateObject) []string {
-	//OPTIMIZE: Better text description
 	dates := []string{}
 	if date.Start != nil {
 		dates = append(dates, date.Start.String())
